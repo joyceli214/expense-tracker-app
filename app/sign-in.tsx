@@ -3,7 +3,8 @@ import { View, Text, TextInput, Button, Alert, StyleSheet } from "react-native";
 import { UserContext } from "../context/UserContext";
 import axios from "axios";
 import { router } from "expo-router";
-import { getUserByEmail } from "@/service/api";
+import { getUserByEmail } from "@/service/users.service";
+import alert from "@/components/Alert";
 
 const EnterEmailScreen = () => {
   const [email, setEmail] = useState("");
@@ -11,7 +12,7 @@ const EnterEmailScreen = () => {
 
   const handleSubmit = async () => {
     if (!email) {
-      Alert.alert("Error", "Please enter an email");
+      alert("Error", "Please enter an email");
       return;
     }
 
@@ -21,11 +22,11 @@ const EnterEmailScreen = () => {
         setUser(user);
         router.replace("/");
       } else {
-        Alert.alert("Error", "User not found");
+        alert("Error", "User not found");
       }
     } catch (error) {
       console.error("Error fetching user:", error);
-      Alert.alert("Error", "Failed to fetch user data");
+      alert("Error", "Failed to fetch user data");
     }
   };
 
