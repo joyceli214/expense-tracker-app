@@ -45,7 +45,12 @@ export default function ExpensesScreen() {
   );
 
   if (loading) {
-    return <ActivityIndicator size="large" />;
+    // return <ThemedText>Loading...</ThemedText>;
+    <ThemedView
+      style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+    >
+      <ActivityIndicator size="large" />
+    </ThemedView>;
   }
 
   if (error) {
@@ -81,8 +86,9 @@ export default function ExpensesScreen() {
     Object.entries(balances).forEach(([userId, balance]) => {
       if (userId === currentUserId) return;
 
-      const userName = expenses.find((e) => e.paidBy._id === userId)?.paidBy
-        .name;
+      const userName = userGroup
+        .find((group) => group._id === id)
+        ?.members.find((member) => member._id === userId)?.name;
 
       if (balance < 0) {
         result.push(`${userName} owes you $${(-balance).toFixed(2)}`);
@@ -94,12 +100,13 @@ export default function ExpensesScreen() {
     return result.length ? result : ["All debts are settled."];
   }
 
-  const renderItem: ListRenderItem<ExpenseDto> = ({ item }) => (
+  const renderItem = ({ item, index }: { item: ExpenseDto; index: number }) => (
     <TouchableOpacity
       style={styles.item}
       onPress={() =>
         router.push({ pathname: "/addExpense", params: { id: item._id } })
       }
+      key={index}
     >
       <ThemedText style={styles.date}>{format(item.date, "MMM dd")}</ThemedText>
       <ThemedText style={styles.description}>{item.description}</ThemedText>
@@ -127,7 +134,8 @@ export default function ExpensesScreen() {
         </ThemedText>
       </ThemedView>
       <ThemedText>
-        {userGroup.find((group) => group._id === id)!.members.length > 1 &&
+        {id &&
+          userGroup.find((group) => group._id === id)!.members.length > 1 &&
           calculateDebtsFromUserPerspective(expenses, user!._id)}
       </ThemedText>
 
@@ -143,11 +151,7 @@ export default function ExpensesScreen() {
         />
       </ThemedView>
 
-      <FlatList
-        data={expenses}
-        renderItem={renderItem}
-        keyExtractor={(item) => item._id}
-      />
+      {expenses.map((item, index) => renderItem({ item, index }))}
     </ParallaxScrollView>
   );
 }

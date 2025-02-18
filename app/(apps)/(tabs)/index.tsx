@@ -20,12 +20,13 @@ export default function HomeScreen() {
   const { userGroup } = useContext(UserContext);
   const router = useRouter();
 
-  const renderItem: ListRenderItem<Group> = ({ item }) => (
+  const renderItem = ({ item }: { item: Group }) => (
     <TouchableOpacity
       style={styles.item}
       onPress={() =>
         router.push({ pathname: "/expenses", params: { id: item._id } })
       }
+      key={item._id}
     >
       <ThemedText>{item.name}</ThemedText>
     </TouchableOpacity>
@@ -44,11 +45,7 @@ export default function HomeScreen() {
       <ThemedView style={styles.titleContainer}>
         <ThemedText type="title">Groups</ThemedText>
       </ThemedView>
-      <FlatList
-        data={userGroup}
-        renderItem={renderItem}
-        keyExtractor={(item) => item._id}
-      />
+      {userGroup.map((item) => renderItem({ item }))}
     </ParallaxScrollView>
   );
 }

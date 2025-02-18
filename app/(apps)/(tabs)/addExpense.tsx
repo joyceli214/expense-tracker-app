@@ -22,10 +22,12 @@ import {
   Alert,
   Button,
   Platform,
+  StyleProp,
   StyleSheet,
   Switch,
   TextInput,
   View,
+  ViewStyle,
 } from "react-native";
 import DatePicker from "react-native-datepicker";
 import RNPickerSelect from "react-native-picker-select";
@@ -202,6 +204,7 @@ export default function AddEditExpenseScreen() {
   const handleDelete = () => {
     alert("Confirm", "Are you sure you want to delete this expense?", [
       {
+        text: "Delete",
         style: "destructive",
         onPress: () =>
           deleteExpense(id as string).then(() =>
@@ -209,12 +212,12 @@ export default function AddEditExpenseScreen() {
           ),
       },
       {
+        text: "Cancel",
         onPress: () => {},
         style: "cancel",
       },
     ]);
   };
-
   if (loading) {
     return <ActivityIndicator size="large" />;
   }
@@ -237,11 +240,7 @@ export default function AddEditExpenseScreen() {
       </ThemedView>
       {id && (
         <View style={styles.deleteButtonContainer}>
-          <Button
-            title="Delete"
-            onPress={handleDelete}
-            color="red" // Set button color to red
-          />
+          <Button title="Delete" onPress={handleDelete} color="red" />
         </View>
       )}
       <ThemedText style={styles.label}>Amount</ThemedText>
@@ -268,7 +267,7 @@ export default function AddEditExpenseScreen() {
       ) : (
         <DateTimePicker
           mode="single"
-          date={dayjs()}
+          date={expense?.date ?? dayjs()}
           onChange={(params) => handleChange("date", params.date)}
         />
       )}
@@ -287,7 +286,7 @@ export default function AddEditExpenseScreen() {
         }))}
         style={pickerSelectStyles}
         value={expense?.group?._id}
-        placeholder={{ label: "Select Group", value: null }}
+        placeholder={{ label: "Select Group", value: undefined }}
       />
       <ThemedText style={styles.label}>Paid By</ThemedText>
       <RNPickerSelect
@@ -295,12 +294,11 @@ export default function AddEditExpenseScreen() {
         items={paidByOptions}
         style={pickerSelectStyles}
         value={expense?.paidBy}
-        placeholder={{ label: "Paid By", value: null }}
+        placeholder={{ label: "Paid By", value: undefined }}
       />
 
       <ThemedText style={styles.label}>Split Equally</ThemedText>
       <Switch
-        style={styles.input}
         value={expense?.splitEqually}
         onValueChange={(value) => handleChange("splitEqually", value)}
       />
@@ -310,13 +308,23 @@ export default function AddEditExpenseScreen() {
         onValueChange={(value) => handleChange("category", value)}
         items={[
           { label: "Food", value: "Food" },
-          { label: "Transport", value: "Transport" },
+          {
+            label: "Mandatory Household Item",
+            value: "Mandatory Household Item",
+          },
+          {
+            label: "Optional Household Item",
+            value: "Optional Household Item",
+          },
+          { label: "Transportation", value: "Transportation" },
           { label: "Entertainment", value: "Entertainment" },
+          { label: "Clothes", value: "Clothes" },
+          { label: "Utilities", value: "Utilities" },
           { label: "Other", value: "Other" },
         ]}
         value={expense?.category ?? "Other"}
         style={pickerSelectStyles}
-        placeholder={{ label: "Select Type", value: null }}
+        placeholder={{ label: "Select Type", value: undefined }}
       />
 
       <Button
@@ -369,6 +377,9 @@ const styles = StyleSheet.create({
 });
 
 const pickerSelectStyles = {
+  inputIOSContainer: {
+    pointerEvents: "none",
+  } as StyleProp<ViewStyle>,
   inputIOS: {
     height: 40,
     borderColor: "#ccc",

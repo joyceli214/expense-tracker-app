@@ -5,6 +5,8 @@ import axios from "axios";
 import { router } from "expo-router";
 import { getUserByEmail } from "@/service/users.service";
 import alert from "@/components/Alert";
+import ParallaxScrollView from "@/components/ParallaxScrollView";
+import { ThemedView } from "@/components/ThemedView";
 
 const EnterEmailScreen = () => {
   const [email, setEmail] = useState("");
@@ -31,7 +33,7 @@ const EnterEmailScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <ThemedView style={styles.container}>
       <Text style={styles.title}>Enter Your Email</Text>
       <TextInput
         style={styles.input}
@@ -41,7 +43,7 @@ const EnterEmailScreen = () => {
         keyboardType="email-address"
       />
       <Button title="Submit" onPress={handleSubmit} />
-    </View>
+    </ThemedView>
   );
 };
 
