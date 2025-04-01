@@ -1,6 +1,7 @@
 import {
   DarkTheme,
   DefaultTheme,
+  NavigationContainer,
   ThemeProvider,
 } from "@react-navigation/native";
 import { useFonts } from "expo-font";
@@ -14,6 +15,9 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { ActivityIndicator, View } from "react-native";
 import { UserContext, UserProvider } from "@/context/UserContext";
 import EnterEmailScreen from "../sign-in";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import AddEditExpenseScreen from "./addExpense";
+import TabLayout from "./(tabs)/_layout";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -45,13 +49,20 @@ export default function RootLayout() {
   if (!user) {
     return <Redirect href="/sign-in" />;
   }
+
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+      <StatusBar style="auto" />
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="addExpense"
+          options={{
+            headerBackTitle: "Back",
+          }}
+        />
         <Stack.Screen name="+not-found" />
       </Stack>
-      <StatusBar style="auto" />
     </ThemeProvider>
   );
 }

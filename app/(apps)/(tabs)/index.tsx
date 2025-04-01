@@ -5,6 +5,8 @@ import {
   TouchableOpacity,
   ListRenderItem,
   FlatList,
+  View,
+  ActivityIndicator,
 } from "react-native";
 
 import { HelloWave } from "@/components/HelloWave";
@@ -17,7 +19,7 @@ import { Group } from "@/dto/expense.dto";
 import { useRouter } from "expo-router";
 
 export default function HomeScreen() {
-  const { userGroup } = useContext(UserContext);
+  const { userGroup, loading } = useContext(UserContext);
   const router = useRouter();
 
   const renderItem = ({ item }: { item: Group }) => (
@@ -31,6 +33,13 @@ export default function HomeScreen() {
       <ThemedText>{item.name}</ThemedText>
     </TouchableOpacity>
   );
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
 
   return (
     <ParallaxScrollView

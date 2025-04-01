@@ -36,6 +36,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const loadUser = async () => {
       try {
+        setLoading(true);
         const userData = await AsyncStorage.getItem("user");
         const userGroupData = await AsyncStorage.getItem("userGroup");
         if (userGroupData) setUserGroup(JSON.parse(userGroupData));
@@ -52,21 +53,18 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   // Save user to storage when updated
   useEffect(() => {
     const saveUser = async () => {
+      setLoading(true);
       if (user) {
         await AsyncStorage.setItem("user", JSON.stringify(user));
-      } else {
-        await AsyncStorage.removeItem("user");
-      }
-    };
-    const getAndSaveUserGroup = async () => {
-      if (user) {
         console.log(user);
         const newUserGroup = await getUserGroupsByUser(user._id);
         setUserGroup(newUserGroup);
         await AsyncStorage.setItem("userGroup", JSON.stringify(newUserGroup));
+      } else {
+        await AsyncStorage.removeItem("user");
       }
+      setLoading(false);
     };
-    getAndSaveUserGroup();
     saveUser();
   }, [user]);
   return (

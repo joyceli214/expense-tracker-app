@@ -123,7 +123,7 @@ export default function ExpensesScreen() {
         <IconSymbol
           size={310}
           color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
+          name="dollarsign.circle"
           style={styles.headerImage}
         />
       }
@@ -133,11 +133,12 @@ export default function ExpensesScreen() {
           {id ? userGroup.find((group) => group._id === id)?.name : "Expenses"}
         </ThemedText>
       </ThemedView>
-      <ThemedText>
-        {id &&
-          userGroup.find((group) => group._id === id)!.members.length > 1 &&
-          calculateDebtsFromUserPerspective(expenses, user!._id)}
-      </ThemedText>
+      {id &&
+        userGroup.find((group) => group._id === id)!.members.length > 1 && (
+          <ThemedText>
+            {calculateDebtsFromUserPerspective(expenses, user!._id)}
+          </ThemedText>
+        )}
 
       <ThemedView style={styles.deleteButtonContainer}>
         <Button

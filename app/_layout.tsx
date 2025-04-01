@@ -5,7 +5,7 @@ import { UserProvider } from "@/context/UserContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function RootLayout() {
-  AsyncStorage.clear();
+  // AsyncStorage.clear();
   return (
     <UserProvider>
       <Slot />

@@ -1,10 +1,16 @@
-import ParallaxScrollView from "@/components/ParallaxScrollView";
 import { ThemedText } from "@/components/ThemedText";
-import { ThemedView } from "@/components/ThemedView";
-import { IconSymbol } from "@/components/ui/IconSymbol";
-import { ExpenseDto, Group, NewExpenseDto, User } from "@/dto/expense.dto";
+import { Group } from "@/dto/expense.dto";
 
-import { format } from "date-fns";
+import alert from "@/components/Alert";
+import { ThemedScrollView } from "@/components/ThemedScrollView";
+import { UserContext } from "@/context/UserContext";
+import {
+  createExpense,
+  deleteExpense,
+  getExpenseById,
+  updateExpense,
+} from "@/service/expenses.service";
+import dayjs from "dayjs";
 import {
   useFocusEffect,
   useLocalSearchParams,
@@ -15,32 +21,21 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useState,
 } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Button,
   Platform,
   StyleProp,
   StyleSheet,
   Switch,
   TextInput,
-  View,
   ViewStyle,
 } from "react-native";
-import DatePicker from "react-native-datepicker";
 import RNPickerSelect from "react-native-picker-select";
 import DateTimePicker from "react-native-ui-datepicker";
-import dayjs from "dayjs";
-import { UserContext } from "@/context/UserContext";
-import {
-  createExpense,
-  deleteExpense,
-  getExpenseById,
-  updateExpense,
-} from "@/service/expenses.service";
-import alert from "@/components/Alert";
 
 function WebDateTimePicker({ value, onChange }: any) {
   return createElement("input", {
@@ -79,9 +74,11 @@ export default function AddEditExpenseScreen() {
             date: new Date(details.date),
             category: details.category,
             paidBy: details.paidBy._id,
-            splitEqually: details.expense.every(
-              (v) => v.amount === details.expense[0].amount
-            ),
+            splitEqually:
+              details.expense.length > 1 &&
+              details.expense.every(
+                (v) => v.amount === details.expense[0].amount
+              ),
             group: userGroup.find((group) => group._id === details.group),
           });
       };
@@ -93,8 +90,9 @@ export default function AddEditExpenseScreen() {
         setExpense(() => ({
           amount: undefined,
           description: "",
-          category: "Other",
-          paidBy: undefined,
+          category: "Food",
+          paidBy: userGroup.find((group) => group._id === groupId)?.members[0]
+            ._id,
           date: new Date(),
           group: userGroup.find((group) => group._id === groupId),
           splitEqually: true,
@@ -103,6 +101,14 @@ export default function AddEditExpenseScreen() {
       setLoading(false);
     }, [id, groupId])
   );
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      title: id ? "Update Expense" : "Create Expense",
+      headerRight: () =>
+        id && <Button title="Delete" onPress={handleDelete} color="red" />,
+    });
+  }, [navigation]);
 
   const [paidByOptions, setPaidByOptions] = useState<any[]>([]);
 
@@ -198,7 +204,12 @@ export default function AddEditExpenseScreen() {
         expense: expenseDistribution,
       });
     }
-    alert("Success", "Expense has been recorded!");
+    alert("Success", "Expense has been recorded!", [
+      {
+        text: "OK",
+        onPress: () => navigation.goBack(),
+      },
+    ]);
   };
 
   const handleDelete = () => {
@@ -208,7 +219,12 @@ export default function AddEditExpenseScreen() {
         style: "destructive",
         onPress: () =>
           deleteExpense(id as string).then(() =>
-            alert("Success", "Expense has been deleted!")
+            alert("Success", "Expense has been deleted!", [
+              {
+                text: "OK",
+                onPress: () => navigation.goBack(),
+              },
+            ])
           ),
       },
       {
@@ -222,33 +238,22 @@ export default function AddEditExpenseScreen() {
     return <ActivityIndicator size="large" />;
   }
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: "#D0D0D0", dark: "#353636" }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
-        />
-      }
+    <ThemedScrollView
+      contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
+      style={styles.container}
     >
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">
-          {id ? "Update Expense" : "Create Expense"}
-        </ThemedText>
-      </ThemedView>
-      {id && (
-        <View style={styles.deleteButtonContainer}>
-          <Button title="Delete" onPress={handleDelete} color="red" />
-        </View>
-      )}
       <ThemedText style={styles.label}>Amount</ThemedText>
       <TextInput
         style={styles.input}
-        keyboardType="numeric"
+        keyboardType="decimal-pad"
         value={expense?.amount?.toString() ?? ""}
-        onChangeText={(text) => handleChange("amount", parseFloat(text) || 0)}
+        onChangeText={(text) => {
+          handleChange("amount", text);
+        }}
+        onEndEditing={(e: any) => {
+          const parsedValue = parseFloat(e.nativeEvent.text) || 0;
+          handleChange("amount", parsedValue);
+        }}
       />
 
       <ThemedText style={styles.label}>Description</ThemedText>
@@ -326,34 +331,19 @@ export default function AddEditExpenseScreen() {
         style={pickerSelectStyles}
         placeholder={{ label: "Select Type", value: undefined }}
       />
-
       <Button
         title={id ? "Update Expense" : "Create Expense"}
         onPress={handleSubmit}
         color="#4CAF50"
       />
-    </ParallaxScrollView>
+    </ThemedScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  deleteButtonContainer: {
-    alignSelf: "flex-end", // Align to right
-    marginBottom: 15, // Add some margin below
-  },
   container: {
-    flex: 1,
-    padding: 16,
-  },
-  headerImage: {
-    color: "#808080",
-    bottom: -90,
-    left: -35,
-    position: "absolute",
-  },
-  titleContainer: {
-    flexDirection: "row",
-    gap: 8,
+    padding: 32,
+    paddingBottom: 100,
   },
   label: {
     fontSize: 16,

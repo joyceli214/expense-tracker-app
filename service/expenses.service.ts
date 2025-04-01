@@ -2,11 +2,17 @@ import { CreateExpenseDto, ExpenseDto } from "@/dto/expense.dto";
 import { axiosInstance } from ".";
 const basePath = "/expense";
 
-export async function getExpensesByUserId(
-  userId: string
-): Promise<ExpenseDto[]> {
+export async function getExpensesSum(
+  userId: string,
+  from: Date,
+  to: Date
+): Promise<Record<string, number>> {
   try {
-    const response = await axiosInstance.get(`${basePath}?userId=${userId}`);
+    const fromStr = from.toISOString();
+    const toStr = to.toISOString();
+    const response = await axiosInstance.get(
+      `${basePath}/stats/${userId}?from=${fromStr}&to=${toStr}`
+    );
     return response.data;
   } catch (error) {
     console.error("API Error:", error);
