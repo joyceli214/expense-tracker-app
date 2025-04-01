@@ -41,7 +41,24 @@ function WebDateTimePicker({ value, onChange }: any) {
   return createElement("input", {
     type: "date",
     value: value,
-    onInput: onChange,
+    onChange: (event: any) => {
+      try {
+        // Extract the date string from the event
+        const dateString = event.target.value;
+
+        // Create a date object from the string
+        const dateObject = new Date(dateString);
+
+        // Check if the date is valid
+        if (!isNaN(dateObject.getTime())) {
+          onChange(dateObject);
+        } else {
+          console.error("Invalid date format:", dateString);
+        }
+      } catch (error) {
+        console.error("Error parsing date:", error);
+      }
+    },
   });
 }
 interface Expense {
