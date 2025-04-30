@@ -2,6 +2,20 @@ import { CreateExpenseDto, ExpenseDto } from "@/dto/expense.dto";
 import { axiosInstance } from ".";
 const basePath = "/expense";
 
+export interface ExtractExpenseFromImageDto {
+  imageBase64: string;
+  mimeType: string;
+  defaultCurrency?: string;
+}
+
+export interface ExtractedExpenseDto {
+  itemName: string;
+  category: string;
+  price: number;
+  currency: string;
+  receiptDate: string;
+}
+
 export async function getExpensesSum(
   userId: string,
   from: Date,
@@ -65,6 +79,21 @@ export async function getExpensesByGroupIds(
         return params.groupIds.map((id: string) => `groupId=${id}`).join("&");
       },
     });
+    return response.data;
+  } catch (error) {
+    console.error("API Error:", error);
+    throw error;
+  }
+}
+
+export async function extractExpenseFromImage(
+  data: ExtractExpenseFromImageDto
+): Promise<ExtractedExpenseDto> {
+  try {
+    const response = await axiosInstance.post(
+      `${basePath}/extract-from-image`,
+      data
+    );
     return response.data;
   } catch (error) {
     console.error("API Error:", error);

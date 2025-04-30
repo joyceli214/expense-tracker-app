@@ -2,6 +2,7 @@ import ParallaxScrollView from "@/components/ParallaxScrollView";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
+import { useThemeColor } from "@/hooks/useThemeColor";
 import { UserContext } from "@/context/UserContext";
 import { ExpenseDto, User } from "@/dto/expense.dto";
 import { getExpensesByGroupIds } from "@/service/expenses.service";
@@ -20,10 +21,13 @@ import {
 export default function ExpensesScreen() {
   const [expenses, setExpenses] = useState<ExpenseDto[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<Error | null>(null);
   const router = useRouter();
   const { user, userGroup } = useContext(UserContext);
   const { id } = useLocalSearchParams();
+  // Move hook calls to the top level
+  const tabIconDefaultColor = useThemeColor({}, "tabIconDefault");
+  const iconColor = useThemeColor({}, "icon");
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
@@ -34,7 +38,7 @@ export default function ExpensesScreen() {
           );
           setExpenses(expenses);
         } catch (err) {
-          setError(err);
+          setError(err instanceof Error ? err : new Error(String(err)));
         } finally {
           setLoading(false);
         }
@@ -45,12 +49,13 @@ export default function ExpensesScreen() {
   );
 
   if (loading) {
-    // return <ThemedText>Loading...</ThemedText>;
-    <ThemedView
-      style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-    >
-      <ActivityIndicator size="large" />
-    </ThemedView>;
+    return (
+      <ThemedView
+        style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+      >
+        <ActivityIndicator size="large" />
+      </ThemedView>
+    );
   }
 
   if (error) {
@@ -102,13 +107,17 @@ export default function ExpensesScreen() {
 
   const renderItem = ({ item, index }: { item: ExpenseDto; index: number }) => (
     <TouchableOpacity
-      style={styles.item}
+      style={[styles.item, { borderColor: tabIconDefaultColor }]}
       onPress={() =>
         router.push({ pathname: "/addExpense", params: { id: item._id } })
       }
       key={index}
     >
-      <ThemedText style={styles.date}>{format(item.date, "MMM dd")}</ThemedText>
+      <ThemedText style={styles.date}>
+        {typeof item.date === "string"
+          ? format(new Date(item.date), "MMM dd")
+          : format(item.date, "MMM dd")}
+      </ThemedText>
       <ThemedText style={styles.description}>{item.description}</ThemedText>
       <ThemedText style={styles.amount}>
         ${item.expense.reduce((sum, expense) => sum + expense.amount, 0)}
@@ -122,7 +131,7 @@ export default function ExpensesScreen() {
       headerImage={
         <IconSymbol
           size={310}
-          color="#808080"
+          color={iconColor}
           name="dollarsign.circle"
           style={styles.headerImage}
         />
@@ -134,9 +143,14 @@ export default function ExpensesScreen() {
         </ThemedText>
       </ThemedView>
       {id &&
-        userGroup.find((group) => group._id === id)!.members.length > 1 && (
+        user &&
+        userGroup &&
+        (() => {
+          const group = userGroup.find((g) => g._id === id);
+          return group && group.members && group.members.length > 1;
+        })() && (
           <ThemedText>
-            {calculateDebtsFromUserPerspective(expenses, user!._id)}
+            {calculateDebtsFromUserPerspective(expenses, user._id).join(", ")}
           </ThemedText>
         )}
 
@@ -159,7 +173,6 @@ export default function ExpensesScreen() {
 
 const styles = StyleSheet.create({
   headerImage: {
-    color: "#808080",
     bottom: -90,
     left: -35,
     position: "absolute",
@@ -176,10 +189,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     padding: 10,
     borderBottomWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#687076", // Will be overridden in the component
     alignItems: "center",
   },
-  date: { flex: 1, fontSize: 14, color: "#666" },
+  date: { flex: 1, fontSize: 14 },
   description: { flex: 2, fontSize: 16 },
   amount: { flex: 1, textAlign: "right", fontSize: 16, fontWeight: "bold" },
   deleteButtonContainer: {

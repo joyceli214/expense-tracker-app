@@ -2,6 +2,9 @@ import ParallaxScrollView from "@/components/ParallaxScrollView";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
+import { useThemeColor } from "@/hooks/useThemeColor";
+import { Colors } from "@/constants/Colors";
+import { useColorScheme } from "@/hooks/useColorScheme";
 import { UserContext } from "@/context/UserContext";
 import { getExpensesSum } from "@/service/expenses.service";
 import { useFocusEffect } from "@react-navigation/native";
@@ -25,7 +28,96 @@ interface ExpenseItem {
   percentage: string;
 }
 
+// Base styles that don't depend on theme
+const baseStyles = StyleSheet.create({
+  headerImage: {
+    bottom: -90,
+    left: -35,
+    position: "absolute",
+  },
+  container: {
+    flex: 1,
+    padding: 16,
+  },
+  titleContainer: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  item: {
+    flexDirection: "row",
+    padding: 10,
+    borderBottomWidth: 1,
+    alignItems: "center",
+  },
+  percentage: { flex: 1, fontSize: 14 },
+  category: { flex: 2, fontSize: 16 },
+  amount: { flex: 1, textAlign: "right", fontSize: 16, fontWeight: "bold" },
+  datePickerContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginBottom: 16,
+  },
+  dateButton: {
+    padding: 10,
+    borderRadius: 5,
+  },
+  webDatePickerContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginVertical: 16,
+    flexWrap: "wrap",
+  },
+  webDatePickerItem: {
+    marginHorizontal: 10,
+    marginVertical: 5,
+    alignItems: "center",
+  },
+  dateLabel: {
+    marginBottom: 5,
+    fontWeight: "bold",
+  },
+  buttonContainer: {
+    alignItems: "center",
+    marginTop: 10,
+  },
+  applyButton: {
+    padding: 10,
+    borderRadius: 5,
+    alignItems: "center",
+    justifyContent: "center",
+    width: 100,
+  },
+  applyButtonText: {
+    fontWeight: "bold",
+  },
+});
+
+// Function to get theme-specific styles
+function getThemedStyles(colorScheme: "light" | "dark") {
+  return {
+    // Don't include color in the style object for headerImage
+    headerImage: {},
+    container: {
+      backgroundColor: Colors[colorScheme].background,
+    },
+    item: {
+      borderColor: Colors[colorScheme].tabIconDefault,
+    },
+    dateButton: {
+      backgroundColor: colorScheme === "light" ? "#f0f0f0" : "#353636",
+    },
+    applyButton: {
+      backgroundColor: colorScheme === "light" ? "#4CAF50" : "#2E7D32",
+    },
+    applyButtonText: {
+      color: "white",
+    },
+  };
+}
+
 const ExpensesPage = () => {
+  const colorScheme = useColorScheme() ?? "light";
+  const themedStyles = getThemedStyles(colorScheme);
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
   const [total, setTotal] = useState<number>(0);
   const [from, setFrom] = useState<Dayjs>(
@@ -77,10 +169,12 @@ const ExpensesPage = () => {
     item: ExpenseItem;
     index: number;
   }) => (
-    <ThemedView style={styles.item} key={index}>
-      <ThemedText style={styles.percentage}>{item.percentage}</ThemedText>
-      <ThemedText style={styles.category}>{item.category}</ThemedText>
-      <ThemedText style={styles.amount}>${item.amount.toFixed(2)}</ThemedText>
+    <ThemedView style={[baseStyles.item, themedStyles.item]} key={index}>
+      <ThemedText style={baseStyles.percentage}>{item.percentage}</ThemedText>
+      <ThemedText style={baseStyles.category}>{item.category}</ThemedText>
+      <ThemedText style={baseStyles.amount}>
+        ${item.amount.toFixed(2)}
+      </ThemedText>
     </ThemedView>
   );
 
@@ -90,20 +184,20 @@ const ExpensesPage = () => {
       headerImage={
         <IconSymbol
           size={310}
-          color="#808080"
+          color={colorScheme === "light" ? Colors.light.icon : Colors.dark.icon}
           name="chart.bar"
-          style={styles.headerImage}
+          style={baseStyles.headerImage}
         />
       }
     >
-      <ThemedView style={styles.titleContainer}>
+      <ThemedView style={baseStyles.titleContainer}>
         <ThemedText type="title">Statistics</ThemedText>
       </ThemedView>
       <ThemedText>Total: ${total.toFixed(2)}</ThemedText>
 
-      <ThemedView style={styles.datePickerContainer}>
+      <ThemedView style={baseStyles.datePickerContainer}>
         <TouchableOpacity
-          style={styles.dateButton}
+          style={[baseStyles.dateButton, themedStyles.dateButton]}
           onPress={() => {
             setShowDatePicker(!showDatePicker);
             setEditDate("from");
@@ -117,9 +211,9 @@ const ExpensesPage = () => {
       {showDatePicker &&
         (Platform.OS === "web" ? (
           <ThemedView>
-            <ThemedView style={styles.webDatePickerContainer}>
-              <ThemedView style={styles.webDatePickerItem}>
-                <ThemedText style={styles.dateLabel}>From:</ThemedText>
+            <ThemedView style={baseStyles.webDatePickerContainer}>
+              <ThemedView style={baseStyles.webDatePickerItem}>
+                <ThemedText style={baseStyles.dateLabel}>From:</ThemedText>
                 <WebDateTimePicker
                   value={from}
                   onChange={(date: Dayjs) => {
@@ -128,8 +222,8 @@ const ExpensesPage = () => {
                   }}
                 />
               </ThemedView>
-              <ThemedView style={styles.webDatePickerItem}>
-                <ThemedText style={styles.dateLabel}>To:</ThemedText>
+              <ThemedView style={baseStyles.webDatePickerItem}>
+                <ThemedText style={baseStyles.dateLabel}>To:</ThemedText>
                 <WebDateTimePicker
                   value={to}
                   onChange={(date: Dayjs) => {
@@ -139,12 +233,19 @@ const ExpensesPage = () => {
                 />
               </ThemedView>
             </ThemedView>
-            <ThemedView style={styles.buttonContainer}>
+            <ThemedView style={baseStyles.buttonContainer}>
               <TouchableOpacity
-                style={styles.applyButton}
+                style={[baseStyles.applyButton, themedStyles.applyButton]}
                 onPress={() => setShowDatePicker(false)}
               >
-                <ThemedText style={styles.applyButtonText}>Apply</ThemedText>
+                <ThemedText
+                  style={[
+                    baseStyles.applyButtonText,
+                    themedStyles.applyButtonText,
+                  ]}
+                >
+                  Apply
+                </ThemedText>
               </TouchableOpacity>
             </ThemedView>
           </ThemedView>
@@ -177,12 +278,19 @@ const ExpensesPage = () => {
                 }
               }}
             />
-            <ThemedView style={styles.buttonContainer}>
+            <ThemedView style={baseStyles.buttonContainer}>
               <TouchableOpacity
-                style={styles.applyButton}
+                style={[baseStyles.applyButton, themedStyles.applyButton]}
                 onPress={() => setShowDatePicker(false)}
               >
-                <ThemedText style={styles.applyButtonText}>Apply</ThemedText>
+                <ThemedText
+                  style={[
+                    baseStyles.applyButtonText,
+                    themedStyles.applyButtonText,
+                  ]}
+                >
+                  Apply
+                </ThemedText>
               </TouchableOpacity>
             </ThemedView>
           </ThemedView>
@@ -193,74 +301,6 @@ const ExpensesPage = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  headerImage: {
-    color: "#808080",
-    bottom: -90,
-    left: -35,
-    position: "absolute",
-  },
-  container: {
-    flex: 1,
-    padding: 16,
-    backgroundColor: "#fff",
-  },
-  titleContainer: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  item: {
-    flexDirection: "row",
-    padding: 10,
-    borderBottomWidth: 1,
-    borderColor: "#ddd",
-    alignItems: "center",
-  },
-
-  percentage: { flex: 1, fontSize: 14, color: "#666" },
-  category: { flex: 2, fontSize: 16 },
-  amount: { flex: 1, textAlign: "right", fontSize: 16, fontWeight: "bold" },
-  datePickerContainer: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginBottom: 16,
-  },
-  dateButton: {
-    padding: 10,
-    backgroundColor: "#f0f0f0",
-    borderRadius: 5,
-  },
-  webDatePickerContainer: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginVertical: 16,
-    flexWrap: "wrap",
-  },
-  webDatePickerItem: {
-    marginHorizontal: 10,
-    marginVertical: 5,
-    alignItems: "center",
-  },
-  dateLabel: {
-    marginBottom: 5,
-    fontWeight: "bold",
-  },
-  buttonContainer: {
-    alignItems: "center",
-    marginTop: 10,
-  },
-  applyButton: {
-    backgroundColor: "#4CAF50",
-    padding: 10,
-    borderRadius: 5,
-    alignItems: "center",
-    justifyContent: "center",
-    width: 100,
-  },
-  applyButtonText: {
-    color: "white",
-    fontWeight: "bold",
-  },
-});
+// Styles are now defined at the top of the file
 
 export default ExpensesPage;

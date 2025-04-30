@@ -3,14 +3,21 @@ import { Group } from "@/dto/expense.dto";
 
 import alert from "@/components/Alert";
 import { ThemedScrollView } from "@/components/ThemedScrollView";
+import { ThemedView } from "@/components/ThemedView";
+import { useThemeColor } from "@/hooks/useThemeColor";
+import { Colors } from "@/constants/Colors";
+import { useColorScheme } from "@/hooks/useColorScheme";
 import { UserContext } from "@/context/UserContext";
 import {
   createExpense,
   deleteExpense,
   getExpenseById,
   updateExpense,
+  extractExpenseFromImage,
+  ExtractExpenseFromImageDto,
 } from "@/service/expenses.service";
 import dayjs from "dayjs";
+import * as ImagePicker from "expo-image-picker";
 import {
   useFocusEffect,
   useLocalSearchParams,
@@ -33,14 +40,35 @@ import {
   Switch,
   TextInput,
   ViewStyle,
+  TouchableOpacity,
+  Image,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import RNPickerSelect from "react-native-picker-select";
 import DateTimePicker from "react-native-ui-datepicker";
 
 function WebDateTimePicker({ value, onChange }: any) {
+  const colorScheme = useColorScheme() ?? "light";
+
   return createElement("input", {
     type: "date",
     value: value,
+    style: {
+      height: "40px",
+      border: "1px solid #ccc",
+      borderRadius: "5px",
+      marginBottom: "15px",
+      padding: "0 10px",
+      width: "100%",
+      backgroundColor: colorScheme === "light" ? "#fff" : "#333",
+      color: colorScheme === "light" ? "#000" : "#fff",
+      boxSizing: "border-box",
+      fontFamily:
+        "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+      fontSize: "14px",
+      fontWeight: "normal",
+      outline: "none",
+    },
     onChange: (event: any) => {
       try {
         // Extract the date string from the event
@@ -71,12 +99,15 @@ interface Expense {
   group?: Group;
 }
 export default function AddEditExpenseScreen() {
+  const colorScheme = useColorScheme() ?? "light";
+  const themedStyles = getThemedStyles(colorScheme);
   const navigation = useNavigation();
   const { id, groupId } = useLocalSearchParams();
   const [expense, setExpense] = useState<Expense | null>(null);
   const [error, setError] = useState(null);
   const { user, userGroup } = useContext(UserContext);
   const [loading, setLoading] = useState(false);
+  const [imageProcessing, setImageProcessing] = useState(false);
   useFocusEffect(
     useCallback(() => {
       const fetchExpense = async () => {
@@ -108,8 +139,7 @@ export default function AddEditExpenseScreen() {
           amount: undefined,
           description: "",
           category: "Food",
-          paidBy: userGroup.find((group) => group._id === groupId)?.members[0]
-            ._id,
+          paidBy: user?._id, // Set to current user's ID
           date: new Date(),
           group: userGroup.find((group) => group._id === groupId),
           splitEqually: true,
@@ -135,15 +165,28 @@ export default function AddEditExpenseScreen() {
       const group = userGroup.find((group) => group._id === expense.group?._id);
       if (group) {
         setPaidByOptions(
-          group.members.map((user) => ({
-            label: user.name,
-            value: user._id,
+          group.members.map((member) => ({
+            label: member.name,
+            value: member._id,
           }))
         );
-        handleChange("paidBy", group.members[0]._id);
+
+        // Check if current user is a member of this group
+        const currentUserInGroup = group.members.find(
+          (member) => member._id === user?._id
+        );
+
+        // If creating a new expense (no id) and current user is in the group, set paidBy to current user
+        // Otherwise, keep the existing paidBy value
+        if (!id && currentUserInGroup) {
+          handleChange("paidBy", user?._id);
+        } else if (!expense.paidBy) {
+          // Fallback to first member if no paidBy is set
+          handleChange("paidBy", group.members[0]._id);
+        }
       }
     }
-  }, [expense?.group]);
+  }, [expense?.group, user?._id]);
 
   const handleChange = (key: keyof Expense, value: any) => {
     setExpense((prev) => ({ ...prev, [key]: value }));
@@ -229,6 +272,132 @@ export default function AddEditExpenseScreen() {
     ]);
   };
 
+  const requestPermissions = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      alert(
+        "Error",
+        "Sorry, we need camera roll permissions to make this work!"
+      );
+      return false;
+    }
+    return true;
+  };
+
+  const pickImage = async () => {
+    const hasPermission = await requestPermissions();
+    if (!hasPermission) return;
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const selectedAsset = result.assets[0];
+        if (selectedAsset.base64) {
+          await processImage(
+            selectedAsset.base64,
+            selectedAsset.mimeType || "image/jpeg"
+          );
+        } else {
+          alert("Error", "Could not get base64 data from the selected image");
+        }
+      }
+    } catch (error) {
+      console.error("Error picking image:", error);
+      alert("Error", "Failed to pick image");
+    }
+  };
+
+  const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      alert("Error", "Sorry, we need camera permissions to make this work!");
+      return;
+    }
+
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const selectedAsset = result.assets[0];
+        if (selectedAsset.base64) {
+          await processImage(
+            selectedAsset.base64,
+            selectedAsset.mimeType || "image/jpeg"
+          );
+        } else {
+          alert("Error", "Could not get base64 data from the captured image");
+        }
+      }
+    } catch (error) {
+      console.error("Error taking photo:", error);
+      alert("Error", "Failed to take photo");
+    }
+  };
+
+  const processImage = async (base64Image: string, mimeType: string) => {
+    try {
+      setImageProcessing(true);
+
+      const requestData: ExtractExpenseFromImageDto = {
+        imageBase64: base64Image,
+        mimeType: mimeType,
+        defaultCurrency: "USD", // You could get this from user preferences if available
+      };
+
+      const extractedData = await extractExpenseFromImage(requestData);
+
+      // Update the expense form with the extracted data
+      setExpense((prev) => {
+        if (!prev) return prev;
+
+        return {
+          ...prev,
+          amount: extractedData.price,
+          description: extractedData.itemName,
+          category: mapExtractedCategoryToAppCategory(extractedData.category),
+          date: new Date(extractedData.receiptDate),
+        };
+      });
+
+      alert("Success", "Expense details extracted from image!");
+    } catch (error) {
+      console.error("Error processing image:", error);
+      alert("Error", "Failed to extract expense details from image");
+    } finally {
+      setImageProcessing(false);
+    }
+  };
+
+  // Helper function to map extracted categories to app categories
+  const mapExtractedCategoryToAppCategory = (
+    extractedCategory: string
+  ): string => {
+    const categoryMap: Record<string, string> = {
+      "Food & Drink": "Food",
+      Groceries: "Food",
+      Restaurant: "Food",
+      Transportation: "Transportation",
+      Entertainment: "Entertainment",
+      Utilities: "Utilities",
+      Clothing: "Clothes",
+      Household: "Mandatory Household Item",
+    };
+
+    return categoryMap[extractedCategory] || "Other";
+  };
+
   const handleDelete = () => {
     alert("Confirm", "Are you sure you want to delete this expense?", [
       {
@@ -252,16 +421,58 @@ export default function AddEditExpenseScreen() {
     ]);
   };
   if (loading) {
-    return <ActivityIndicator size="large" />;
+    return (
+      <ThemedView
+        style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+      >
+        <ActivityIndicator size="large" />
+      </ThemedView>
+    );
   }
   return (
     <ThemedScrollView
       contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
-      style={styles.container}
+      style={baseStyles.container}
     >
-      <ThemedText style={styles.label}>Amount</ThemedText>
+      {imageProcessing && (
+        <ThemedView style={baseStyles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#0000ff" />
+          <ThemedText style={{ marginTop: 10 }}>Processing image...</ThemedText>
+        </ThemedView>
+      )}
+
+      <ThemedView style={baseStyles.imagePickerContainer}>
+        <TouchableOpacity
+          style={baseStyles.imagePickerButton}
+          onPress={pickImage}
+        >
+          <Ionicons
+            name="images-outline"
+            size={24}
+            color={Colors[colorScheme].text}
+          />
+          <ThemedText style={baseStyles.imagePickerText}>
+            Select Image
+          </ThemedText>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={baseStyles.imagePickerButton}
+          onPress={takePhoto}
+        >
+          <Ionicons
+            name="camera-outline"
+            size={24}
+            color={Colors[colorScheme].text}
+          />
+          <ThemedText style={baseStyles.imagePickerText}>Take Photo</ThemedText>
+        </TouchableOpacity>
+      </ThemedView>
+      <ThemedText style={[baseStyles.label, themedStyles.label]}>
+        Amount
+      </ThemedText>
       <TextInput
-        style={styles.input}
+        style={[baseStyles.input, themedStyles.input]}
         keyboardType="decimal-pad"
         value={expense?.amount?.toString() ?? ""}
         onChangeText={(text) => {
@@ -273,14 +484,18 @@ export default function AddEditExpenseScreen() {
         }}
       />
 
-      <ThemedText style={styles.label}>Description</ThemedText>
+      <ThemedText style={[baseStyles.label, themedStyles.label]}>
+        Description
+      </ThemedText>
       <TextInput
-        style={styles.input}
+        style={[baseStyles.input, themedStyles.input]}
         value={expense?.description}
         onChangeText={(text) => handleChange("description", text)}
       />
 
-      <ThemedText style={styles.label}>Date</ThemedText>
+      <ThemedText style={[baseStyles.label, themedStyles.label]}>
+        Date
+      </ThemedText>
       {Platform.OS === "web" ? (
         <WebDateTimePicker
           value={expense?.date?.toISOString().slice(0, 10)}
@@ -294,7 +509,9 @@ export default function AddEditExpenseScreen() {
         />
       )}
 
-      <ThemedText style={styles.label}>Group</ThemedText>
+      <ThemedText style={[baseStyles.label, themedStyles.label]}>
+        Group
+      </ThemedText>
       <RNPickerSelect
         onValueChange={(value) => {
           handleChange(
@@ -306,26 +523,32 @@ export default function AddEditExpenseScreen() {
           label: group.name,
           value: group._id,
         }))}
-        style={pickerSelectStyles}
+        style={themedStyles.pickerSelect}
         value={expense?.group?._id}
         placeholder={{ label: "Select Group", value: undefined }}
       />
-      <ThemedText style={styles.label}>Paid By</ThemedText>
+      <ThemedText style={[baseStyles.label, themedStyles.label]}>
+        Paid By
+      </ThemedText>
       <RNPickerSelect
         onValueChange={(value) => handleChange("paidBy", value)}
         items={paidByOptions}
-        style={pickerSelectStyles}
+        style={themedStyles.pickerSelect}
         value={expense?.paidBy}
         placeholder={{ label: "Paid By", value: undefined }}
       />
 
-      <ThemedText style={styles.label}>Split Equally</ThemedText>
+      <ThemedText style={[baseStyles.label, themedStyles.label]}>
+        Split Equally
+      </ThemedText>
       <Switch
         value={expense?.splitEqually}
         onValueChange={(value) => handleChange("splitEqually", value)}
       />
 
-      <ThemedText style={styles.label}>Type</ThemedText>
+      <ThemedText style={[baseStyles.label, themedStyles.label]}>
+        Type
+      </ThemedText>
       <RNPickerSelect
         onValueChange={(value) => handleChange("category", value)}
         items={[
@@ -345,19 +568,20 @@ export default function AddEditExpenseScreen() {
           { label: "Other", value: "Other" },
         ]}
         value={expense?.category ?? "Other"}
-        style={pickerSelectStyles}
+        style={themedStyles.pickerSelect}
         placeholder={{ label: "Select Type", value: undefined }}
       />
       <Button
         title={id ? "Update Expense" : "Create Expense"}
         onPress={handleSubmit}
-        color="#4CAF50"
+        color={colorScheme === "light" ? "#4CAF50" : "#2E7D32"}
       />
     </ThemedScrollView>
   );
 }
 
-const styles = StyleSheet.create({
+// Base styles that don't depend on theme
+const baseStyles = StyleSheet.create({
   container: {
     padding: 32,
     paddingBottom: 100,
@@ -366,7 +590,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     marginBottom: 5,
-    color: "#333",
   },
   input: {
     height: 40,
@@ -375,43 +598,83 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginBottom: 15,
     paddingHorizontal: 10,
-    backgroundColor: "#fff",
   },
   datePicker: {
     width: "100%",
     marginBottom: 15,
   },
+  imagePickerContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
+  imagePickerButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 10,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    flex: 0.48,
+  },
+  imagePickerText: {
+    marginLeft: 8,
+    fontSize: 14,
+  },
+  loadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1000,
+  },
 });
 
-const pickerSelectStyles = {
-  inputIOSContainer: {
-    pointerEvents: "none",
-  } as StyleProp<ViewStyle>,
-  inputIOS: {
-    height: 40,
-    borderColor: "#ccc",
-    borderWidth: 1,
-    borderRadius: 5,
-    paddingHorizontal: 10,
-    marginBottom: 15,
-    backgroundColor: "#fff",
-  },
-  inputAndroid: {
-    height: 40,
-    borderColor: "#ccc",
-    borderWidth: 1,
-    borderRadius: 5,
-    paddingHorizontal: 10,
-    marginBottom: 15,
-    backgroundColor: "#fff",
-  },
-  inputWeb: {
-    height: 40,
-    borderColor: "#ccc",
-    borderWidth: 1,
-    borderRadius: 5,
-    paddingHorizontal: 10,
-    marginBottom: 15,
-    backgroundColor: "#fff",
-  },
-};
+// Function to get theme-specific styles
+function getThemedStyles(colorScheme: "light" | "dark") {
+  return {
+    label: {
+      color: Colors[colorScheme].text,
+    },
+    input: {
+      backgroundColor: colorScheme === "light" ? "#fff" : "#333",
+    },
+    pickerSelect: {
+      inputIOSContainer: {
+        pointerEvents: "none",
+      } as StyleProp<ViewStyle>,
+      inputIOS: {
+        height: 40,
+        borderColor: "#ccc",
+        borderWidth: 1,
+        borderRadius: 5,
+        paddingHorizontal: 10,
+        marginBottom: 15,
+        backgroundColor: colorScheme === "light" ? "#fff" : "#333",
+      },
+      inputAndroid: {
+        height: 40,
+        borderColor: "#ccc",
+        borderWidth: 1,
+        borderRadius: 5,
+        paddingHorizontal: 10,
+        marginBottom: 15,
+        backgroundColor: colorScheme === "light" ? "#fff" : "#333",
+      },
+      inputWeb: {
+        height: 40,
+        borderColor: "#ccc",
+        borderWidth: 1,
+        borderRadius: 5,
+        paddingHorizontal: 10,
+        marginBottom: 15,
+        backgroundColor: colorScheme === "light" ? "#fff" : "#333",
+      },
+    },
+  };
+}
