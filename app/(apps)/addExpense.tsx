@@ -18,6 +18,7 @@ import {
 } from "@/service/expenses.service";
 import dayjs from "dayjs";
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import {
   useFocusEffect,
   useLocalSearchParams,
@@ -42,6 +43,7 @@ import {
   ViewStyle,
   TouchableOpacity,
   Image,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import RNPickerSelect from "react-native-picker-select";
@@ -272,41 +274,42 @@ export default function AddEditExpenseScreen() {
     ]);
   };
 
-  const requestPermissions = async () => {
+  const requestMediaLibraryPermissions = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
       alert(
         "Error",
-        "Sorry, we need camera roll permissions to make this work!"
+        "Sorry, we need photo library permissions to make this work!"
       );
       return false;
     }
     return true;
   };
 
+  const requestCameraPermissions = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      alert("Error", "Sorry, we need camera permissions to make this work!");
+      return false;
+    }
+    return true;
+  };
+
   const pickImage = async () => {
-    const hasPermission = await requestPermissions();
+    const hasPermission = await requestMediaLibraryPermissions();
     if (!hasPermission) return;
 
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
+        quality: 0.6,
         base64: true,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const selectedAsset = result.assets[0];
-        if (selectedAsset.base64) {
-          await processImage(
-            selectedAsset.base64,
-            selectedAsset.mimeType || "image/jpeg"
-          );
-        } else {
-          alert("Error", "Could not get base64 data from the selected image");
-        }
+        await convertAndProcessImage(selectedAsset.uri);
       }
     } catch (error) {
       console.error("Error picking image:", error);
@@ -315,11 +318,8 @@ export default function AddEditExpenseScreen() {
   };
 
   const takePhoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== "granted") {
-      alert("Error", "Sorry, we need camera permissions to make this work!");
-      return;
-    }
+    const hasPermission = await requestCameraPermissions();
+    if (!hasPermission) return;
 
     try {
       const result = await ImagePicker.launchCameraAsync({
@@ -331,14 +331,7 @@ export default function AddEditExpenseScreen() {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const selectedAsset = result.assets[0];
-        if (selectedAsset.base64) {
-          await processImage(
-            selectedAsset.base64,
-            selectedAsset.mimeType || "image/jpeg"
-          );
-        } else {
-          alert("Error", "Could not get base64 data from the captured image");
-        }
+        await convertAndProcessImage(selectedAsset.uri);
       }
     } catch (error) {
       console.error("Error taking photo:", error);
@@ -346,27 +339,180 @@ export default function AddEditExpenseScreen() {
     }
   };
 
-  const processImage = async (base64Image: string, mimeType: string) => {
+  const handleImageSelection = useCallback(() => {
+    console.log("Image selection button pressed - showing options...");
+
+    // On web platform, directly call pickImage without showing Alert
+    if (Platform.OS === "web") {
+      pickImage();
+      return;
+    }
+
+    // On mobile platforms, show the Alert with options
+    Alert.alert(
+      "Select Image",
+      "Choose an option",
+      [
+        {
+          text: "Take Photo",
+          onPress: takePhoto,
+        },
+        {
+          text: "Choose from Library",
+          onPress: pickImage,
+        },
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+      ],
+      { cancelable: true }
+    );
+  }, []);
+
+  const convertAndProcessImage = async (imageUri: string) => {
     try {
       setImageProcessing(true);
+      console.log(
+        "Starting image processing for URI:",
+        imageUri.substring(0, 50) + "..."
+      );
+
+      // Check if the image is HEIC format
+      const isHeicImage =
+        imageUri.toLowerCase().endsWith(".heic") ||
+        imageUri.toLowerCase().includes("image/heic");
+
+      if (isHeicImage) {
+        // Only convert HEIC images to JPEG
+        console.log("HEIC image detected, converting to JPEG format");
+
+        try {
+          // Use ImageManipulator to convert HEIC to JPEG
+          const manipulatedImage = await ImageManipulator.manipulateAsync(
+            imageUri,
+            [], // No transformations needed, just format conversion
+            {
+              format: ImageManipulator.SaveFormat.JPEG,
+              base64: true,
+            }
+          );
+
+          console.log(
+            "Image manipulation complete. Width:",
+            manipulatedImage.width,
+            "Height:",
+            manipulatedImage.height
+          );
+
+          if (!manipulatedImage.base64) {
+            console.error("Base64 data is missing from manipulated image");
+            throw new Error("Failed to get base64 data from manipulated image");
+          }
+
+          const base64Data = manipulatedImage.base64;
+          const processedImageUri = `data:image/jpeg;base64,${base64Data}`;
+          console.log("Base64 data length:", base64Data.length);
+
+          // Process the converted image
+          await processImage(processedImageUri, "image/jpeg");
+        } catch (manipulationError) {
+          console.error("Error during image manipulation:", manipulationError);
+          // If manipulation fails, try to process the original image as fallback
+          await processImage(imageUri, "image/jpeg");
+        }
+      } else {
+        // For non-HEIC images, process directly without conversion
+        console.log("Non-HEIC image, processing directly");
+
+        // Determine MIME type based on file extension
+        let mimeType = "image/jpeg"; // Default
+        if (imageUri.toLowerCase().endsWith(".png")) {
+          mimeType = "image/png";
+        } else if (imageUri.toLowerCase().endsWith(".gif")) {
+          mimeType = "image/gif";
+        }
+
+        await processImage(imageUri, mimeType);
+      }
+    } catch (error) {
+      console.error("Error converting image:", error);
+      // Log more details about the error
+      if (error instanceof Error) {
+        console.error("Error name:", error.name);
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+      }
+      alert("Error", "Failed to process image");
+      setImageProcessing(false);
+    }
+  };
+
+  const processImage = async (base64Image: string, mimeType: string) => {
+    try {
+      // If the image is a URI (not a base64 string), convert it to base64
+      let imageBase64 = base64Image;
+      if (!base64Image.startsWith("data:")) {
+        console.log("Converting URI to base64 data URI");
+        try {
+          // For non-base64 URIs, convert using ImageManipulator
+          const manipulatedImage = await ImageManipulator.manipulateAsync(
+            base64Image,
+            [],
+            {
+              format: ImageManipulator.SaveFormat.JPEG,
+              compress: 0.7,
+              base64: true,
+            }
+          );
+
+          if (!manipulatedImage.base64) {
+            throw new Error("Failed to get base64 data from image");
+          }
+
+          imageBase64 = `data:image/jpeg;base64,${manipulatedImage.base64}`;
+          console.log("Successfully converted URI to base64 data URI");
+        } catch (error) {
+          console.error("Error converting image URI to base64:", error);
+          throw error;
+        }
+      }
+
+      // Already set in convertAndProcessImage, no need to set again
+      // setImageProcessing(true);
+      console.log("Starting processImage with mimeType:", mimeType);
+
+      // Extract the base64 data from the data URI by removing the prefix
+      let rawBase64Data = imageBase64;
+      if (imageBase64.startsWith("data:")) {
+        // Find the position of the first comma which separates the metadata from the actual base64 data
+        const commaIndex = imageBase64.indexOf(",");
+        if (commaIndex !== -1) {
+          rawBase64Data = imageBase64.substring(commaIndex + 1);
+          console.log("Extracted raw base64 data from data URI");
+        }
+      }
 
       const requestData: ExtractExpenseFromImageDto = {
-        imageBase64: base64Image,
+        imageBase64: rawBase64Data,
         mimeType: mimeType,
-        defaultCurrency: "USD", // You could get this from user preferences if available
+        defaultCurrency: "CAD", // You could get this from user preferences if available
       };
 
+      console.log("Calling extractExpenseFromImage API...");
       const extractedData = await extractExpenseFromImage(requestData);
+      console.log("API response received:", JSON.stringify(extractedData));
 
       // Update the expense form with the extracted data
       setExpense((prev) => {
         if (!prev) return prev;
+        console.log("Updating expense form with extracted data");
 
         return {
           ...prev,
           amount: extractedData.price,
           description: extractedData.itemName,
-          category: mapExtractedCategoryToAppCategory(extractedData.category),
+          category: extractedData.category,
           date: new Date(extractedData.receiptDate),
         };
       });
@@ -374,28 +520,18 @@ export default function AddEditExpenseScreen() {
       alert("Success", "Expense details extracted from image!");
     } catch (error) {
       console.error("Error processing image:", error);
+      // Log more details about the API error
+      if (error instanceof Error) {
+        console.error("Error name:", error.name);
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+      } else if (typeof error === "object" && error !== null) {
+        console.error("Error details:", JSON.stringify(error));
+      }
       alert("Error", "Failed to extract expense details from image");
     } finally {
       setImageProcessing(false);
     }
-  };
-
-  // Helper function to map extracted categories to app categories
-  const mapExtractedCategoryToAppCategory = (
-    extractedCategory: string
-  ): string => {
-    const categoryMap: Record<string, string> = {
-      "Food & Drink": "Food",
-      Groceries: "Food",
-      Restaurant: "Food",
-      Transportation: "Transportation",
-      Entertainment: "Entertainment",
-      Utilities: "Utilities",
-      Clothing: "Clothes",
-      Household: "Mandatory Household Item",
-    };
-
-    return categoryMap[extractedCategory] || "Other";
   };
 
   const handleDelete = () => {
@@ -443,29 +579,17 @@ export default function AddEditExpenseScreen() {
 
       <ThemedView style={baseStyles.imagePickerContainer}>
         <TouchableOpacity
-          style={baseStyles.imagePickerButton}
-          onPress={pickImage}
-        >
-          <Ionicons
-            name="images-outline"
-            size={24}
-            color={Colors[colorScheme].text}
-          />
-          <ThemedText style={baseStyles.imagePickerText}>
-            Select Image
-          </ThemedText>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={baseStyles.imagePickerButton}
-          onPress={takePhoto}
+          style={[baseStyles.imagePickerButton, { flex: 1 }]}
+          onPress={handleImageSelection}
         >
           <Ionicons
             name="camera-outline"
             size={24}
             color={Colors[colorScheme].text}
           />
-          <ThemedText style={baseStyles.imagePickerText}>Take Photo</ThemedText>
+          <ThemedText style={baseStyles.imagePickerText}>
+            Select or Take Photo
+          </ThemedText>
         </TouchableOpacity>
       </ThemedView>
       <ThemedText style={[baseStyles.label, themedStyles.label]}>
@@ -570,6 +694,8 @@ export default function AddEditExpenseScreen() {
         value={expense?.category ?? "Other"}
         style={themedStyles.pickerSelect}
         placeholder={{ label: "Select Type", value: undefined }}
+        useNativeAndroidPickerStyle={false}
+        key={`category-picker-${expense?.category}`} // Force re-render when category changes
       />
       <Button
         title={id ? "Update Expense" : "Create Expense"}

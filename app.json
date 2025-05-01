@@ -10,7 +10,11 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.joyceli214.expensetrackerapp"
+      "bundleIdentifier": "com.joyceli214.expensetrackerapp",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app uses the camera to take photos of receipts for expense tracking.",
+        "NSPhotoLibraryUsageDescription": "This app accesses your photo library to select receipt images for expense tracking."
+      }
     },
     "android": {
       "adaptiveIcon": {
