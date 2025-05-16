@@ -1,50 +1,95 @@
-# Welcome to your Expo app 👋
+# Expense Tracker App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A cross-platform mobile and web application for tracking personal and shared expenses, built with Expo and React Native.
 
-## Get started
+## Overview
 
-1. Install dependencies
+This expense tracker application allows users to record, categorize, and analyze their expenses. It supports group expense tracking, making it easy to split bills and keep track of who owes whom. The app includes features like receipt scanning, expense categorization, and statistical analysis of spending patterns.
+
+## Features
+
+- **Receipt Scanning**: Take photos of receipts to automatically extract expense information
+- **Expense Recording**: Add, edit, and delete expenses with descriptions, amounts, and categories
+- **Group Expense Management**: Create groups to share expenses with friends, family, or colleagues
+- **Expense Splitting**: Split expenses equally or unevenly among group members
+- **Debt Calculation**: Automatically calculate who owes whom within a group
+- **Expense Statistics**: View spending patterns and trends by category and time period
+- **Cross-Platform**: Works on iOS, Android, and web platforms
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js (v14 or later)
+- npm or yarn
+- Expo CLI (`npm install -g expo-cli`)
+
+### Installation
+
+1. Clone the repository
+
+2. Install dependencies
 
    ```bash
    npm install
    ```
 
-2. Start the app
+3. Create a `.env` file in the root directory with the following variables:
 
-   ```bash
-    npx expo start
+   ```
+   API_URL=http://localhost:3000 # URL to your backend service
    ```
 
-In the output, you'll find options to open the app in a
+4. Start the development server
+   ```bash
+   npx expo start
+   ```
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+### Running the App
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+After starting the development server, you can:
 
-## Get a fresh project
+- Run on iOS simulator: Press `i` in the terminal or click "Run on iOS simulator" in the Expo DevTools
+- Run on Android emulator: Press `a` in the terminal or click "Run on Android device/emulator" in the Expo DevTools
+- Run on web: Press `w` in the terminal or click "Run in web browser" in the Expo DevTools
+- Run on your device: Scan the QR code with the Expo Go app (available on [iOS](https://apps.apple.com/app/expo-go/id982107779) and [Android](https://play.google.com/store/apps/details?id=host.exp.exponent))
 
-When you're ready, run:
+## Project Structure
 
-```bash
-npm run reset-project
-```
+- `/app`: Main application code using Expo Router for navigation
+  - `/(apps)`: Main application screens
+  - `/(apps)/(tabs)`: Tab-based navigation screens
+- `/components`: Reusable UI components
+- `/context`: React context providers
+- `/dto`: Data transfer objects
+- `/hooks`: Custom React hooks
+- `/service`: API service functions
+- `/constants`: Application constants
+- `/assets`: Images, fonts, and other static assets
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Backend Integration
 
-## Learn more
+This frontend application communicates with a NestJS backend service (`expense-tracker-backend`) that provides:
 
-To learn more about developing your project with Expo, look at the following resources:
+- User authentication and management
+- Expense data storage and retrieval
+- Group management
+- Receipt image processing
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Make sure the backend service is running before using the full features of the app.
 
-## Join the community
+## Technologies Used
 
-Join our community of developers creating universal apps.
+- [Expo](https://expo.dev/): Development framework for React Native
+- [React Native](https://reactnative.dev/): Framework for building native apps using React
+- [Expo Router](https://docs.expo.dev/router/introduction/): File-based routing for Expo apps
+- [React Context](https://reactjs.org/docs/context.html): For state management
+- [Axios](https://axios-http.com/): For API requests
+- [Expo Image Picker](https://docs.expo.dev/versions/latest/sdk/imagepicker/): For camera and image library access
+- [React Native UI DatePicker](https://www.npmjs.com/package/react-native-ui-datepicker): For date selection
+- [Day.js](https://day.js.org/): For date manipulation
+- [date-fns](https://date-fns.org/): For date formatting
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## License
+
+This project is licensed under the MIT License.
